@@ -1,0 +1,38 @@
+SQLITE НЕ УМЕЕТ В BLOB'Ы!!!
+{
+  "dataBases": {
+    "main": {
+      "host": "",
+      "name": "",
+      "user": "",
+      "password": "",
+      "port": 3306,
+      "useUTF8": false,
+      "dontUseInnoDB": true,
+      "dontSetDefaultCharset": true,
+      "serverTimezone": "UTC",
+      "hasCustomLink": true,
+      "customLink": "jdbc:sqlite:za.db",
+      "preLoadClassName": "org.sqlite.JDBC"
+    }
+  },
+  "botUsername": "",
+  "botToken": "",
+  "chatMessage": "",
+  "postLimit": {
+    "time": 3600,
+    "count": 15,
+    "timedownBeforeModeration": 5
+  },
+  "postingChannelChatId": 0,
+  "messageFetcherByForwardChannelChatId": 0,
+  "moderationSessionTimePerPost": 5,
+  "adminUserId": [
+    0
+  ],
+  "moderatorUserId": [],
+  "deleteTraversingMessages": false,
+  "noModeration": true,
+  "noUserLinks": true,
+  "noRubrics": true
+}

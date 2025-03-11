@@ -1,0 +1,162 @@
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="utf-8">
+   	<title>Подпись</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.14.1/jquery-ui.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.0.0/jsencrypt.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
+</head>
+<body data-bs-theme="dark">
+    <div id="formContainer" style="display: none;">
+        <div id="sc1Form" class="overlayForm" style="display: none;">
+            <h4>Сценарий 1</h4>
+            <div class="mb-3">
+                <label for="sc1File" class="form-label">Файл</label>
+                <input type="file" id="sc1File" accept="*">
+    		</div>
+            <div class="mb-3">
+                <label for="sc1Key" class="form-label">Ключ</label>
+    			<input type="file" id="sc1Key" accept=".pem" placeholder="ключ+сертификат">
+    		</div>
+            <button id="sc1FormSc2Button" class="btn btn-secondary">Сценарий 2</button>
+            <button id="sc1FormButton" class="btn btn-primary">Подписать и отправить</button>
+            <div class="mb-3">
+            	<span id="sc1Result"></span>
+    		</div>
+        </div>
+        <div id="sc2Form" class="overlayForm" style="display: none;">
+            <h4>Сценарий 2</h4>
+            <button id="sc2FormSc1Button" class="btn btn-secondary">Сценарий 1</button>
+            <button id="sc2FormButton" class="btn btn-primary">Получить и проверить</button>
+        </div>
+    </div>
+    <script>
+	    $(document).ready(() => {
+            $('#formContainer').fadeIn();
+            $('#sc2Form').fadeIn();
+	        $('#sc1FormSc2Button').click(() => {
+	            $('#sc1Form').fadeOut();
+	            $('#sc2Form').fadeIn();
+	        });
+	        $('#sc2FormSc1Button').click(() => {
+	            $('#sc2Form').fadeOut();
+	            $('#sc1Form').fadeIn();
+	        });
+	        
+	        function sc1(text)
+	        {
+        	    Toastify({
+                   text: text
+                }).showToast();
+        	}
+
+	        async function sha256(msgBuffer) 
+	        {
+	            var hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+	            var hashArray = Array.from(new Uint8Array(hashBuffer));
+	            // клоунада из-за .encrypt(text: string) в jsbn
+	            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+	        }
+
+	        async function sign(hash, key) 
+	        {
+	            var encrypt = new JSEncrypt();
+	            encrypt.setPublicKey(key);
+	            return encrypt.encrypt(hash);
+	        }
+
+	        async function sign2(data, key) 
+	        {
+	            var encrypt = new JSEncrypt();
+	            encrypt.setPrivateKey(key);
+	            return encrypt.sign(data, CryptoJS.SHA256, 'sha256');
+	        }
+	        
+	        async function verify(message, signature, key) 
+	        {
+	            var encrypt = new JSEncrypt();
+	            encrypt.setPublicKey(key);
+	            console.log('message='+message);
+	            //console.log('signature='+signature);
+	            return encrypt.verify(message, signature, CryptoJS.SHA256);
+	        }
+
+	        function base64ToHex(base64) 
+	        {
+	        	var binaryString = atob(base64);
+	        	var bytes = new Uint8Array(binaryString.length);
+	            for (let i = 0; i < binaryString.length; i++) 
+	            {
+	                bytes[i] = binaryString.charCodeAt(i);
+	            }
+	            let hexString = '';
+	            bytes.forEach(byte => 
+	            {
+	                const hex = byte.toString(16).padStart(2, '0');
+	                hexString += hex;
+	            });
+	            return hexString;
+	        }
+	        
+	        $('#sc1FormButton').click(async () => 
+	        {
+	            var fileInput = $('#sc1File')[0];
+	            var keyInput = $('#sc1Key')[0];
+
+	            if (fileInput.files.length === 0 || keyInput.files.length === 0) 
+            	{
+					sc1("Не указаны файлы");
+            	    return;
+            	}
+	            
+				sc1("Чтение...");
+	            var file = fileInput.files[0];
+	            var keyFile = keyInput.files[0];
+
+	            var data = new Uint8Array(await file.arrayBuffer());
+	            var keyArrayBuffer = new TextDecoder().decode(await keyFile.arrayBuffer());
+	            
+	            var dataHash = await sha256(await file.arrayBuffer());
+	            var signData = await sign(dataHash, keyArrayBuffer);
+	            
+				sc1("Отправка...");
+	            var formData = new FormData();
+	            formData.append('file', new Blob([data], { type: file.type }), file.name);
+	            formData.append('sign', signData);
+
+	            var response = await fetch('/verify', 
+	            {
+	                method: 'POST',
+	                body: formData
+	            });
+
+	            var result = await response.text();
+	            sc1(result);
+	        });
+	        
+	        $('#sc2FormButton').click(async () => 
+	        {
+				sc1("Запрос сертификата...");
+                var pubData = await fetch('/pub.pem');
+	            var pubArrayBuffer = new TextDecoder().decode(await pubData.arrayBuffer());
+				sc1("Запрос данных...");
+                var randomData = await fetch('/generate');
+                var randomArrayBuffer = await randomData.arrayBuffer();
+                var signHeader = randomData.headers.get('SIGN');
+	            var randomArrayText = new TextDecoder().decode(randomArrayBuffer);
+
+				sc1("Проверка данных...");
+	        
+	            var isValid = await verify(randomArrayText, signHeader, pubArrayBuffer);
+				sc1("isValid=" + isValid);
+	        });
+	    });
+    </script>
+</body>
+</html>
