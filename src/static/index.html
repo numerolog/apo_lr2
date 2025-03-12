@@ -39,7 +39,7 @@
     <script>
 	    $(document).ready(() => {
             $('#formContainer').fadeIn();
-            $('#sc2Form').fadeIn();
+            $('#sc1Form').fadeIn();
 	        $('#sc1FormSc2Button').click(() => {
 	            $('#sc1Form').fadeOut();
 	            $('#sc2Form').fadeIn();
@@ -63,15 +63,15 @@
 	            // клоунада из-за .encrypt(text: string) в jsbn
 	            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 	        }
-
+			/*
 	        async function sign(hash, key) 
 	        {
 	            var encrypt = new JSEncrypt();
 	            encrypt.setPublicKey(key);
 	            return encrypt.encrypt(hash);
-	        }
+	        }*/
 
-	        async function sign2(data, key) 
+	        async function sign(data, key) 
 	        {
 	            var encrypt = new JSEncrypt();
 	            encrypt.setPrivateKey(key);
@@ -82,8 +82,6 @@
 	        {
 	            var encrypt = new JSEncrypt();
 	            encrypt.setPublicKey(key);
-	            console.log('message='+message);
-	            //console.log('signature='+signature);
 	            return encrypt.verify(message, signature, CryptoJS.SHA256);
 	        }
 
@@ -119,11 +117,11 @@
 	            var file = fileInput.files[0];
 	            var keyFile = keyInput.files[0];
 
-	            var data = new Uint8Array(await file.arrayBuffer());
+	            var data = new TextDecoder().decode(await file.arrayBuffer());
 	            var keyArrayBuffer = new TextDecoder().decode(await keyFile.arrayBuffer());
 	            
-	            var dataHash = await sha256(await file.arrayBuffer());
-	            var signData = await sign(dataHash, keyArrayBuffer);
+	            // var dataHash = await sha256(await file.arrayBuffer());
+	            var signData = await sign(data, keyArrayBuffer);
 	            
 				sc1("Отправка...");
 	            var formData = new FormData();
